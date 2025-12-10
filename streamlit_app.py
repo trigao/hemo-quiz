@@ -18,6 +18,9 @@ st.markdown("""
         font-size: 18px;
         margin-bottom: 10px;
     }
+    img {
+        border-radius: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,37 +52,38 @@ if 'banco_questoes' not in st.session_state:
 @st.cache_data
 def carregar_imagem(url):
     try:
+        # 1. Baixar Imagem
         response = requests.get(url, timeout=5)
         img_pil = Image.open(BytesIO(response.content))
         img_np = np.array(img_pil)
 
+        # 2. Corrigir canais de cor (Garante que é RGB)
         if len(img_np.shape) == 2: img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
         elif img_np.shape[-1] == 4: img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
         
-        # Zoom inteligente (corta o centro se for imagem grande)
+        # 3. Redimensionar para padronizar (SEM CORTAR NADA)
+        # Redimensionamos para 400px de largura e altura proporcional para caber na tela do celular
         h, w, _ = img_np.shape
-        if w > 400:
-            cx, cy = w//2, h//2
-            img_np = img_np[cy-120:cy+120, cx-120:cx+120]
-        
-        # Redimensionar para ficar padrão
-        img_np = cv2.resize(img_np, (300, 300))
+        nova_largura = 400
+        nova_altura = int(h * (nova_largura / w))
+        img_np = cv2.resize(img_np, (nova_largura, nova_altura))
 
-        # Filtros
+        # 4. Criar Filtros Daltônicos
         gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
         
-        # CLAHE (Textura)
+        # CLAHE (Textura Exagerada)
         clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
         texture = clahe.apply(gray)
         
-        # Bordas (Forma)
+        # Bordas (Forma Pura)
         blur = cv2.GaussianBlur(gray, (5,5), 0)
         edges = cv2.Canny(blur, 60, 160)
         edges = cv2.dilate(edges, None, iterations=1)
-        edges_inv = cv2.bitwise_not(edges)
+        edges_inv = cv2.bitwise_not(edges) # Inverte para fundo branco
 
         return img_np, texture, edges_inv
-    except:
+    except Exception as e:
+        print(f"Erro: {e}")
         return None, None, None
 
 def proxima_pergunta():
@@ -152,5 +156,6 @@ if original is not None:
 
 else:
     st.warning("Erro ao baixar imagem. Tentando outra...")
-    proxima_pergunta()
-    st.rerun()
+    if st.button("Tentar Novamente"):
+        proxima_pergunta()
+        st.rerun()
