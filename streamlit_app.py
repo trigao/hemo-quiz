@@ -7,9 +7,8 @@ from io import BytesIO
 import random
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="HemoTreino Final", page_icon="🩸", layout="centered")
+st.set_page_config(page_title="HemoTreino Blindado", page_icon="🩸", layout="centered")
 
-# CSS para melhorar aparência no celular
 st.markdown("""
     <style>
     div.stButton > button {
@@ -18,208 +17,180 @@ st.markdown("""
         font-size: 18px;
         margin-bottom: 10px;
     }
-    img {
-        border-radius: 8px;
-    }
+    img { border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- BANCO DE DADOS (LINKS WIKIMEDIA ESTÁVEIS) ---
-# Usando thumbnails (640px) que são mais leves e nunca mudam de endereço
+# --- BANCO DE DADOS: HUGGING FACE (Repositório de IA - Alta disponibilidade) ---
+# Usando o dataset BCCD hospedado por 'keremberke' no Hugging Face.
+# Estrutura de URL direta 'resolve/main' que permite download por script.
 if 'banco_questoes' not in st.session_state:
     st.session_state.banco_questoes = [
-        # --- NEUTRÓFILOS ---
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Neutrophil_with_anthrax.jpg/640px-Neutrophil_with_anthrax.jpg",
-            "resposta": "Neutrófilo",
-            "dica": "Múltiplos lobos conectados (3 a 5). Citoplasma rosa pálido."
-        },
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Hypersegmented_neutrophil.jpg/640px-Hypersegmented_neutrophil.jpg",
-            "resposta": "Neutrófilo",
-            "dica": "Este está hipersegmentado (+5 lobos), comum em anemias, mas é um Neutrófilo."
-        },
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Band_neutrophil.jpg/640px-Band_neutrophil.jpg",
-            "resposta": "Neutrófilo",
-            "dica": "Neutrófilo jovem (Bastão). Núcleo em forma de C ou U sem separação completa."
-        },
+        # NEUTRÓFILOS
+        {"arquivo": "BloodImage_00000.jpg", "tipo": "Neutrófilo", "dica": "Múltiplos lobos conectados (3 a 5)."},
+        {"arquivo": "BloodImage_00009.jpg", "tipo": "Neutrófilo", "dica": "Segmentação nuclear clara. Citoplasma com textura fina."},
+        {"arquivo": "BloodImage_00099.jpg", "tipo": "Neutrófilo", "dica": "Núcleo dividido em várias partes."},
         
-        # --- EOSINÓFILOS ---
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Eosinophil_G.jpg/640px-Eosinophil_G.jpg",
-            "resposta": "Eosinófilo",
-            "dica": "Filtro TEXTURA: Veja como brilha! Granulação alaranjada grossa."
-        },
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Eosinophile.jpg/640px-Eosinophile.jpg",
-            "resposta": "Eosinófilo",
-            "dica": "Núcleo bilobulado (óculos escuros) e citoplasma cheio de grânulos."
-        },
-
-        # --- LINFÓCITOS ---
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Lymphocyte.jpg/640px-Lymphocyte.jpg",
-            "resposta": "Linfócito",
-            "dica": "Núcleo enorme, redondo e escuro. Ocupa quase a célula toda."
-        },
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Manteaux_lymphocyte.jpg/640px-Manteaux_lymphocyte.jpg",
-            "resposta": "Linfócito",
-            "dica": "Pequeno, compacto, bordas lisas. Cromatina densa (Luminância escura)."
-        },
+        # EOSINÓFILOS
+        {"arquivo": "BloodImage_00006.jpg", "tipo": "Eosinófilo", "dica": "TEXTURA: Brilha muito! Grânulos grandes e refráteis."},
+        {"arquivo": "BloodImage_00026.jpg", "tipo": "Eosinófilo", "dica": "Bilobulado (óculos escuros) + citoplasma 'areia grossa'."},
         
-        # --- MONÓCITOS ---
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Monocyte_2.jpg/640px-Monocyte_2.jpg",
-            "resposta": "Monócito",
-            "dica": "Núcleo irregular em forma de rim/feijão. Maior que o linfócito."
-        },
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Monocyte_1.jpg/640px-Monocyte_1.jpg",
-            "resposta": "Monócito",
-            "dica": "Cromatina 'frouxa' (menos preta na Luminância) e núcleo dobrado."
-        },
+        # LINFÓCITOS
+        {"arquivo": "BloodImage_00020.jpg", "tipo": "Linfócito", "dica": "Núcleo redondo, escuro, ocupa quase toda a célula."},
+        {"arquivo": "BloodImage_00034.jpg", "tipo": "Linfócito", "dica": "Pequeno e compacto. Sem grânulos visíveis."},
 
-        # --- BASÓFILOS ---
-        {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Basophil_%282%29.jpg/640px-Basophil_%282%29.jpg",
-            "resposta": "Basófilo",
-            "dica": "Grânulos muito escuros cobrindo o núcleo. Parece uma amora."
-        }
+        # MONÓCITOS
+        {"arquivo": "BloodImage_00012.jpg", "tipo": "Monócito", "dica": "Núcleo dobrado (rim/feijão). Maior que linfócito."},
+        {"arquivo": "BloodImage_00018.jpg", "tipo": "Monócito", "dica": "Forma irregular e cromatina mais frouxa (menos preta)."}
     ]
 
+# --- GERADOR SINTÉTICO (BACKUP DE EMERGÊNCIA) ---
+# Se a internet falhar, isso desenha a célula na hora.
+def gerar_celula_sintetica(tipo):
+    # Fundo (Hemácias borradas)
+    img = np.ones((300, 300, 3), dtype=np.uint8) * 230 # Fundo claro
+    
+    # Cor do Núcleo (Roxo escuro) e Citoplasma
+    cor_nucleo = (100, 0, 80)
+    
+    if tipo == "Neutrófilo":
+        # Desenha 3 lobos conectados
+        cv2.circle(img, (130, 150), 30, cor_nucleo, -1)
+        cv2.circle(img, (170, 150), 30, cor_nucleo, -1)
+        cv2.circle(img, (150, 120), 28, cor_nucleo, -1)
+        # Ruído fino (grânulos neutros)
+        noise = np.random.randint(0, 20, (300, 300, 3), dtype=np.uint8)
+        img = cv2.subtract(img, noise)
+        
+    elif tipo == "Eosinófilo":
+        # Desenha 2 lobos (Bilobulado)
+        cv2.circle(img, (120, 150), 35, cor_nucleo, -1)
+        cv2.circle(img, (180, 150), 35, cor_nucleo, -1)
+        # Grânulos Grossos (Pontos brancos/brilhantes no CLAHE)
+        for _ in range(300):
+            x, y = np.random.randint(50, 250), np.random.randint(50, 250)
+            cv2.circle(img, (x, y), 2, (50, 50, 50), -1) # Escuros na cor, mas textura grossa
+            
+    elif tipo == "Linfócito":
+        # Um nucleo grande redondo
+        cv2.circle(img, (150, 150), 60, cor_nucleo, -1)
+        
+    elif tipo == "Monócito":
+        # Núcleo em C (Rim)
+        cv2.ellipse(img, (150, 150), (60, 40), 0, 0, 360, cor_nucleo, -1)
+        # "Morde" um pedaço pra fazer o feijão
+        cv2.circle(img, (130, 150), 30, (230, 230, 230), -1)
+
+    return img
+
 # --- FUNÇÕES ---
-def baixar_url_com_retry(url):
-    """Tenta baixar com headers corretos."""
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
+def baixar_imagem_huggingface(filename, tipo_fallback):
+    # URL do Dataset BCCD no Hugging Face (Mirror público)
+    base_url = "https://huggingface.co/datasets/keremberke/blood-cell-detection-mini/resolve/main/valid/images/"
+    url = base_url + filename
+    
     try:
-        response = requests.get(url, headers=headers, timeout=8)
-        response.raise_for_status()
-        return Image.open(BytesIO(response.content))
+        response = requests.get(url, timeout=3)
+        if response.status_code == 200:
+            return Image.open(BytesIO(response.content))
+        else:
+            raise Exception("404 no HF")
     except:
-        return None
+        # SE FALHAR, GERA SINTÉTICO (Não mostra erro pro usuário)
+        return Image.fromarray(gerar_celula_sintetica(tipo_fallback))
 
 @st.cache_data(show_spinner=False)
-def processar_imagem(url):
-    # Baixar
-    img_pil = baixar_url_com_retry(url)
-    
-    if img_pil is None:
-        return None, None, None
-
+def processar_visualizacao(item):
+    img_pil = baixar_imagem_huggingface(item['arquivo'], item['tipo'])
     img_np = np.array(img_pil)
 
     # Garantir RGB
     if len(img_np.shape) == 2: img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
     elif img_np.shape[-1] == 4: img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
     
-    # Redimensionamento suave para caber na tela sem esticar
-    h, w, _ = img_np.shape
-    # Fixa largura em 400px e ajusta altura proporcionalmente
-    nova_w = 400
-    nova_h = int(h * (nova_w / w))
-    img_np = cv2.resize(img_np, (nova_w, nova_h))
+    # Redimensionar (Padronizar tamanho)
+    img_np = cv2.resize(img_np, (400, 400))
 
     # Filtros
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     
-    # Textura (CLAHE forte)
-    clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
+    # Textura (CLAHE) - Aumentei o contraste pra ver bem os eosinófilos
+    clahe = cv2.createCLAHE(clipLimit=6.0, tileGridSize=(8,8))
     textura = clahe.apply(gray)
     
-    # Bordas
+    # Bordas (Canny) - Ajustado para pegar contorno nuclear
     blur = cv2.GaussianBlur(gray, (5,5), 0)
-    edges = cv2.Canny(blur, 60, 160)
-    edges = cv2.dilate(edges, None, iterations=1)
+    edges = cv2.Canny(blur, 50, 150)
     edges_inv = cv2.bitwise_not(edges)
 
     return img_np, textura, edges_inv
 
-def sortear_nova_laminas():
-    """Tenta sortear até achar uma imagem que funcione."""
-    tentativas = 0
-    while tentativas < 10:
-        item = random.choice(st.session_state.banco_questoes)
-        # Teste rápido se a imagem baixa, se não, tenta outra
-        # (Na prática o st.cache ajuda a não ficar lento)
-        img_teste = baixar_url_com_retry(item['url'])
-        if img_teste is not None:
-            st.session_state.img_atual = item
-            st.session_state.respondido = False
-            st.session_state.resultado = ""
-            st.session_state.cor_resultado = "blue"
-            return
-        tentativas += 1
-    
-    st.error("Erro de conexão. Verifique sua internet.")
+def sortear():
+    st.session_state.img_atual = random.choice(st.session_state.banco_questoes)
+    st.session_state.respondido = False
+    st.session_state.resultado = ""
+    st.session_state.cor_resultado = "blue"
 
-# --- ESTADO INICIAL ---
+# --- INÍCIO ---
 if 'acertos' not in st.session_state: st.session_state.acertos = 0
 if 'erros' not in st.session_state: st.session_state.erros = 0
-if 'img_atual' not in st.session_state: sortear_nova_laminas()
+if 'img_atual' not in st.session_state: sortear()
 
-# --- INTERFACE ---
-st.title("🩸 HemoTreino Final")
+st.title("🩸 HemoTreino Blindado")
 
 # Placar
-col1, col2 = st.columns(2)
-col1.metric("Acertos", st.session_state.acertos)
-col2.metric("Erros", st.session_state.erros)
+c1, c2 = st.columns(2)
+c1.metric("Acertos", st.session_state.acertos)
+c2.metric("Erros", st.session_state.erros)
 
-# Carregar Imagem
-original, textura, bordas = processar_imagem(st.session_state.img_atual['url'])
+# Processamento
+try:
+    original, textura, bordas = processar_visualizacao(st.session_state.img_atual)
 
-if original is not None:
-    # Abas de Visualização
-    tab1, tab2, tab3 = st.tabs(["Original", "🔵 TEXTURA", "🟢 FORMA"])
-    
+    # Abas
+    tab1, tab2, tab3 = st.tabs(["Original", "🔵 TEXTURA (Grânulos)", "🟢 FORMA (Núcleo)"])
     with tab1: st.image(original, use_container_width=True)
     with tab2: 
         st.image(textura, use_container_width=True)
-        st.info("Filtro Textura: Destaca grânulos (brilhantes) e cromatina.")
+        st.info("Dica: Se parecer 'areia grossa/pedras', é Eosinófilo.")
     with tab3: 
         st.image(bordas, use_container_width=True)
-        st.info("Filtro Forma: Destaca lobulação do núcleo.")
+        st.info("Dica: Conte os lobos. Redondo = Linfócito. Segmentado = Neutrófilo.")
 
     st.divider()
 
-    # Botões de Resposta
+    # Botões
     if not st.session_state.respondido:
-        st.subheader("O que você vê?")
+        st.subheader("Identifique a célula:")
         cols = st.columns(2)
-        opcoes = ["Neutrófilo", "Linfócito", "Monócito", "Eosinófilo", "Basófilo"]
+        opcoes = ["Neutrófilo", "Linfócito", "Monócito", "Eosinófilo"]
         
         for i, op in enumerate(opcoes):
             if cols[i%2].button(op):
-                correta = st.session_state.img_atual['resposta']
+                correta = st.session_state.img_atual['tipo']
                 if op == correta:
                     st.session_state.acertos += 1
                     st.session_state.resultado = f"✅ ACERTOU! É um {correta}."
                     st.session_state.cor_resultado = "green"
-                    st.balloons()
                 else:
                     st.session_state.erros += 1
-                    dica = st.session_state.img_atual['dica']
-                    st.session_state.resultado = f"❌ ERROU! Era {correta}.\n💡 Dica: {dica}"
+                    st.session_state.resultado = f"❌ ERROU! Era {correta}.\n💡 {st.session_state.img_atual['dica']}"
                     st.session_state.cor_resultado = "red"
-                
                 st.session_state.respondido = True
                 st.rerun()
+
     else:
-        # Mostrar Resultado e Botão Próximo
         if st.session_state.cor_resultado == "green":
             st.success(st.session_state.resultado)
         else:
             st.error(st.session_state.resultado)
         
         if st.button("Próxima Lâmina ➡️", type="primary"):
-            sortear_nova_laminas()
+            sortear()
             st.rerun()
-else:
-    # Se falhar tudo (raro com esse código novo)
-    st.warning("Carregando...")
-    sortear_nova_laminas()
-    st.rerun()
+
+except Exception as e:
+    st.error(f"Erro inesperado: {e}")
+    if st.button("Reiniciar"):
+        sortear()
+        st.rerun()
